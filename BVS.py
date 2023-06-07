@@ -4,7 +4,15 @@
 # Press Double Shift to search everywhere for classes, files, tool windows, actions, and settings.
 import socket
 import os
+import subprocess
+from datetime import date
 
+
+def append_to_file(content, scan):
+    today = date.today()
+    f = open(f"{today}{scan}.txt", "a")
+    f.write(f"{content}")
+    f.close()
 
 def portscan():
     def scan_single_port(host, port):
@@ -25,7 +33,7 @@ def portscan():
 
     if __name__ == '__main__':
         print("This will scan for open ports.")
-        host = input('Enter the host to scan: ')
+        host = input('Enter the host to scan: ').strip(" ")
 
         # Get the user's choice of how many ports to scan.
         choice = input('Do you want to scan (1) a single port, (2) multiple ports, or (3) a range of ports? ')
@@ -84,7 +92,8 @@ def aptupd():
 def main():
     print(
         "Welcome to the Basic Vulnerability Scanner!\nTo begin the scan choose from the following options by entering the numbers associated:\n"
-        "1: Port scan\n2: Out of date software scan\n3: all scans\n")
+        "1: Port scan\n2: Out of date software scan\n3: List all users with Sudo permissions\n4: List all existing users\n5: Check Permissions of /etc/shadow files and permissions of .ssh folders\n"
+        "6: Look for obvious file named password\n7: all scans\n")
     while True:
         menu = input("Input: ")
 
@@ -103,11 +112,39 @@ def main():
             aptupd()
             break
         elif "3" in lmenu:
+            list_sudo_users()
+            rorq()
+        elif "4" in lmenu:
+            list_all_users()
+            rorq()
+        elif "5" in lmenu:
+            permissions_check()
+            rorq()
+        elif "6" in lmenu:
+            file_name_password()
+            rorq()
+        elif "7" in lmenu:
             portscan()
             aptupd()
-            break
+            list_sudo_users()
+            list_all_users()
+            permissions_check()
+            file_name_password()
+            rorq()
         else:
             print("Please enter a valid number")
 
+def list_all_users():
+    print("Existing Users: ")
+    p2 = subprocess.Popen(["grep", "-v", "false\|nologin\|sync", "/etc/passwd"], stdout=subprocess.PIPE)
+    p3 = subprocess.run(['cut', "-d:", "-f1"], stdin=p2.stdout, capture_output=True)
+    s1 = str(p3.stdout)
+    output = s1.split("\\n")
+    for i in output:
+        if output[0]:
+            string = i.strip("b\'")
+            print(string)
+        else:
+            print(i)
 
 main()
