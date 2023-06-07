@@ -1,12 +1,17 @@
-# This is a sample Python script.
 
-# Press Shift+F10 to execute it or replace it with your code.
-# Press Double Shift to search everywhere for classes, files, tool windows, actions, and settings.
 import socket
 import os
 import subprocess
 from datetime import date
 
+def rorq():
+    resp = input("Enter q to quit program, x to return to main menu: ")
+    while not (resp in ["q","x"]):
+        resp=input("Invalid input, please try again: ")
+    if resp == "q":
+        exit()
+    elif resp == "x":
+        main()
 
 def append_to_file(content, scan):
     today = date.today()
@@ -78,6 +83,33 @@ def portscan():
 
         else:
             print('Invalid choice.')
+    resp = input("Enter 'y' to do a more detailed scan, 'q' to quit or 'x' to return to main menu: ")
+    while not (resp in ["q","x","y"]):
+        resp=input("Invalid input, please try again: ")
+    if resp == "q":
+        exit()
+    elif resp == "x":
+        main()
+    elif resp == "y":
+        if choice == "1":
+            scan = subprocess.run(["nmap", "-sV", "--script", "vulners", "-p", f"{port}", f"{host}"],
+                                  capture_output=True, text=True)
+            out = str(scan.stdout)
+            print(out)
+        elif choice == "2":
+            for i in ports:
+                str(i)
+            ports_join = ",".join(ports)
+            scan = subprocess.run(["nmap", "-sV", "--script", "vulners", "-p", f"{ports_join}", f"{host}"],
+                                  capture_output=True, text=True)
+            out = str(scan.stdout)
+            print(out)
+        elif choice == "3":
+            range_of_ports = f"{start_port}-{end_port}"
+            scan = subprocess.run(["nmap", "-sV", "--script", "vulners", "-p", f"{range_of_ports}", f"{host}"],
+                                  capture_output=True, text=True)
+            out = str(scan.stdout)
+            print(out)
 
 
 def aptupd():
@@ -88,6 +120,79 @@ def aptupd():
     print("Upgradeable apps: ")
     os.system("apt list --upgradeable")
 
+def list_sudo_users():
+    # !/usr/bin/python3
+    print("Users with Sudo permissions: ")
+    #first bash command to read group file
+    p1 = subprocess.Popen(["cat", "/etc/group"], stdout=subprocess.PIPE)
+    #finds sudo group
+    p2 = subprocess.run(['grep', "^sudo"], stdin=p1.stdout, capture_output=True)
+    #ensures weird subprocess output is a workable string, this may not be necessary
+    s1 = str(p2.stdout)
+    #divides string into a nice list so we can get rid of unneeded text
+    l1 = s1.split(":")
+    #pulls out the user list
+    sdusers = (l1[-1])
+    #changes single line list into a column list
+    userclean = sdusers.replace(",", "\n")
+    #cleans up a stray \n' that was at the end of the list, left over from the original file formatting
+    userclean = userclean.replace("\\n\'", "")
+    #prints list
+    print(userclean)
+
+def permissions_check():
+    def get_permissions(file_path):
+        try:
+            ls_output = subprocess.run(['ls', '-ld', file_path], capture_output=True, text=True)
+            permissions = ls_output.stdout.split()[0]
+            return permissions
+        except subprocess.CalledProcessError:
+            return None
+
+    def main():
+        etc_shadow_permissions = get_permissions('/etc/shadow')
+        print(f'Permissions for /etc/shadow: {etc_shadow_permissions}')
+
+        home_dir = '/home'
+        users = subprocess.run(['ls', '-1', home_dir], capture_output=True, text=True).stdout.splitlines()
+        for user in users:
+            ssh_dir = f'{home_dir}/{user}/.ssh'
+            if subprocess.run(['test', '-d', ssh_dir]).returncode == 0:
+                ssh_permissions = get_permissions(ssh_dir)
+                print(f'Permissions for {ssh_dir} (User: {user}): {ssh_permissions}')
+            else:
+                print(f'User {user} has no .ssh folder')
+
+    if __name__ == '__main__':
+        main()
+
+
+def file_name_password():
+    def find_password_files(root_dir):
+        password_files = []
+        ls_output = subprocess.run(['find', root_dir, '-type', 'f', '-iname', 'password'], capture_output=True,
+                                   text=True)
+        file_paths = ls_output.stdout.splitlines()
+        for file_path in file_paths:
+            password_files.append(file_path)
+        return password_files
+
+    def main():
+        home_dir = '/home'
+        users = subprocess.run(['ls', '-1', home_dir], capture_output=True, text=True).stdout.splitlines()
+        for user in users:
+            user_dir = os.path.join(home_dir, user)
+            password_files = find_password_files(user_dir)
+            if password_files:
+                print(f'Found password file(s) for user {user}:')
+                for file_path in password_files:
+                    print(file_path)
+                print()
+            else:
+                print(f'No obvious password files found in {user} home directory.')
+
+    if __name__ == '__main__':
+        main()
 
 def main():
     print(
@@ -107,10 +212,11 @@ def main():
 
         if "1" in lmenu:
             portscan()
-            break
+            rorq()
+
         elif "2" in lmenu:
             aptupd()
-            break
+            rorq()
         elif "3" in lmenu:
             list_sudo_users()
             rorq()
