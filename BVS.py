@@ -12,7 +12,7 @@ def append_to_file(content, scan):
     today = date.today()
     os.makedirs("BVS_logs", exist_ok=True)
     f = open(f"BVS_logs/{today}{scan}.txt", "a")
-    f.write(f"{content}")
+    f.write(f"{content}\n")
     f.close()
 
 def portscan():
@@ -138,8 +138,8 @@ def portscan():
     else:
         print('Invalid choice.')
 
-    resp = input("Enter 'y' to do a more detailed scan, 'q' to quit or 'x' to return to main menu: ")
-    while not (resp in ["q","x","y"]):
+    resp = input("Enter y/n to do a more detailed scan, 'q' to quit or 'x' to return to main menu: ")
+    while not (resp in ["q","x","y","n"]):
         resp=input("Invalid input, please try again: ")
     if resp == "q":
         exit()
@@ -238,7 +238,7 @@ def file_name_password():
         file_paths = ls_output.stdout.splitlines()
         for file_path in file_paths:
             password_files.append(file_path)
-        append_to_file(f"The files that contain passwords are: {password_files}", "_passwordFiles")
+        append_to_file(f"The files that contain passwords are: {password_files}\n", "_passwordFiles")
         return password_files
 
     def main():
@@ -254,60 +254,53 @@ def file_name_password():
                     append_to_file(f"The file that contains passwords for {user} is: {file_path}", "_passwordFiles")
                 print()
             else:
-                print(f'No obvious password files found in {user} home directory.')
-                append_to_file(f'No obvious password files found in {user} home directory.', "_passwordFiles")
+                print(f'No obvious password files found in {user} home directory.\n')
+                append_to_file(f'No obvious password files found in {user} home directory.\n', "_passwordFiles")
 
     if __name__ == '__main__':
         main()
 
-def main():
-    if os.getuid() != 0:
-        print("You must run this as a user with sudo permissions")
-        exit(1)
-    print(
-        "Welcome to the Basic Vulnerability Scanner!\nTo begin the scan choose from the following options by entering the numbers associated:\n"
-        "1: Port scan\n2: Out of date software scan\n3: List all users with Sudo permissions\n4: List all existing users\n5: Check Permissions of /etc/shadow files and permissions of .ssh folders\n"
-        "6: Look for obvious file named password\n7: all scans\n")
-    while True:
-        menu = input("Input: ")
-
-        lmenu = menu.split(",")
-        for i in lmenu:
-
-            try:
-                int(i)
-            except:
-                print("Please enter a valid number.")
-
-        if "1" in lmenu:
-            portscan()
-            rorq()
-
-        elif "2" in lmenu:
-            aptupd()
-            rorq()
-        elif "3" in lmenu:
-            list_sudo_users()
-            rorq()
-        elif "4" in lmenu:
-            list_all_users()
-            rorq()
-        elif "5" in lmenu:
-            permissions_check()
-            rorq()
-        elif "6" in lmenu:
-            file_name_password()
-            rorq()
-        elif "7" in lmenu:
-            portscan()
-            aptupd()
-            list_sudo_users()
-            list_all_users()
-            permissions_check()
-            file_name_password()
-            rorq()
-        else:
-            print("Please enter a valid number")
+def pass_checker():
+    #Checks to see if johntheripper is installed
+    p1=subprocess.Popen(["dpkg","--list"],stdout=subprocess.PIPE)
+    p2=subprocess.run(['grep','john'],stdin=p1.stdout,capture_output=True)
+    op2=str(p2.stdout)
+    #prompts user to install
+    while "john" not in op2:
+        i=input("This scan utilizes the third party software johntheripper. This is not currently installed on your device. Would you like to install? (y/n): ")
+        i=i.lower()
+        while i not in ["y","n"]:
+            i=input("Invalid input. Would you like to install? (y/n): ")
+        if i=="y":
+            os.system("sudo apt install john")
+        elif i=="n":
+            print("Scan requires johntheripper. Returning to main menu...")
+            time.sleep(2)
+            main()
+    os.system("sudo unshadow /etc/passwd /etc/shadow > unshad.txt")
+    loc=input("Johntheripper requires a wordlist file of common passwords. Please provide file (text file, one password per line: ")
+    p2=subprocess.run(['ls',loc],capture_output=True,text=True)
+    print(p2.stdout)
+    #erp2=int(p2.stderr)
+    while len(p2.stdout)==0:
+        loc=input("File not found. please provide valid file: ")
+        p2=subprocess.run(['ls',loc],capture_output=True)
+    com=str(f"--wordlist={loc}")
+    subprocess.run(["sudo","john",com,"unshad.txt"],capture_output=True)
+    com=str(f'sudo john --show unshad.txt')
+    p1=subprocess.run(["sudo","john","--show","unshad.txt"],capture_output=True,text=True)
+    #print(p1.stdout)
+    p1=p1.stdout.splitlines()
+    nump=int(p1[-1][0])
+    if nump == 0:
+        print("No weak passwords found. Returning to main menu.\n")
+        main()
+    else:
+        print(f"{nump} weak password(s) found. The following users have weak passwords: ")
+        i=0
+        for i in range(nump):
+            line=p1[i].split(":")
+            print(line[0])
 
 def list_all_users():
     print("Existing Users: ")
@@ -316,7 +309,8 @@ def list_all_users():
     s1 = str(p3.stdout)
     output = s1.split("\\n")
     output[0] = output[0].strip("b\'")
-    append_to_file(f"The existing users are: {output}")
+    output = output[:-1]
+    append_to_file(f"The existing users are: {output}", "_allUsers")
     for i in output:
         if output[0]:
             string = i.strip("b\'")
@@ -324,7 +318,52 @@ def list_all_users():
         else:
             print(i)
 
-main()
+def run_all_opts():
+    portscan()
+    aptupd()
+    list_sudo_users()
+    list_all_users()
+    permissions_check()
+    file_name_password()
+    pass_checker()
+
+# main()
+# Menu function
+def menu():
+    options = {
+        "1": portscan,
+        "2": aptupd,
+        "3": list_sudo_users,
+        "4": list_all_users,
+        "5": permissions_check,
+        "6": file_name_password,
+        "7": pass_checker,
+        "q": exit_program
+    }
+    print("Main Menu:")
+    print("1. Run port(s) scan.")
+    print("2. Check application for updates.")
+    print("3. List all the users who are in sudo group.")
+    print("4. List all the existing users.")
+    print("5. Check permissions for /etc/shadow and .ssh directories for all users.")
+    print("6. Check to see if there are any obvious password files in users home directory.")
+    print("7. Check password strength of all users.")
+    print("q. Exit")
+    choice = input("Enter your choice (separated by commas for multiple choices): ")
+    choices = choice.split(",")
+    choices = errcheck(choices, options)
+    for _ in choices:
+        options[_]()
+
+    confirm = input("Return to the main menu? (y/n): ")
+    while confirm.lower() not in ['y', 'n']:
+        print("Invalid choice. Please enter 'y' or 'n'.")
+        confirm = input("Return to the main menu? (y/n): ")
+
+    if confirm.lower() == 'n':
+        exit_program()
+    else:
+        menu()
 
 # Exit program function
 def exit_program():
