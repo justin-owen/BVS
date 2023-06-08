@@ -83,6 +83,7 @@ def portscan():
 
         else:
             print('Invalid choice.')
+
     resp = input("Enter 'y' to do a more detailed scan, 'q' to quit or 'x' to return to main menu: ")
     while not (resp in ["q","x","y"]):
         resp=input("Invalid input, please try again: ")
