@@ -2,16 +2,11 @@
 import socket
 import os
 import subprocess
+import time
+import datetime
 from datetime import date
+from datetime import datetime
 
-def rorq():
-    resp = input("Enter q to quit program, x to return to main menu: ")
-    while not (resp in ["q","x"]):
-        resp=input("Invalid input, please try again: ")
-    if resp == "q":
-        exit()
-    elif resp == "x":
-        main()
 
 def append_to_file(content, scan):
     today = date.today()
@@ -186,7 +181,7 @@ def aptupd():
 
 def list_sudo_users():
     # !/usr/bin/python3
-    print("Users with Sudo permissions: ")
+    #print("Users with Sudo permissions: ")
     #first bash command to read group file
     p1 = subprocess.Popen(["cat", "/etc/group"], stdout=subprocess.PIPE)
     #finds sudo group
@@ -201,6 +196,8 @@ def list_sudo_users():
     userclean = sdusers.replace(",", "\n")
     #cleans up a stray \n' that was at the end of the list, left over from the original file formatting
     userclean = userclean.replace("\\n\'", "")
+    ctime=datetime.now()
+    userclean = str(f"The following users currently have Sudo Permissions as of {ctime}: \n{userclean}\n")
     #prints list
     print(userclean)
     append_to_file(userclean, "_sudoUsers")
