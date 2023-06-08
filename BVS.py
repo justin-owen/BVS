@@ -21,11 +21,48 @@ def append_to_file(content, scan):
     f.close()
 
 def portscan():
+    # Function to check if an IP address is valid
+    def is_valid_ip_address(ip):
+        try:
+            socket.inet_pton(socket.AF_INET, ip)  # Check IPv4 format
+            return True
+        except socket.error:
+            try:
+                socket.inet_pton(socket.AF_INET6, ip)  # Check IPv6 format
+                return True
+            except socket.error:
+                return False
+
+    # Function to get a valid port number from the user
+    def get_valid_port(prompt):
+        while True:
+            port = input(prompt)
+            try:
+                port = int(port)
+                if 1 <= port <= 65535:
+                    return port
+                else:
+                    print("Invalid port number. Please enter a number between 1 and 65535.")
+            except ValueError:
+                print("Invalid input. Please enter a valid port number.")
+
+    # Function to get a valid choice from the user
+    def get_valid_choice(prompt):
+        valid_choices = ["1", "2", "3"]
+        while True:
+            choice = input(prompt)
+            if choice in valid_choices:
+                return choice
+            else:
+                print("Invalid choice. Please enter 1, 2, or 3.")
+
+    # Function to scan a single port on a host
     def scan_single_port(host, port):
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             s.settimeout(1)
             return s.connect_ex((host, port)) == 0
 
+    # Function to scan multiple ports on a host
     def scan_multiple_ports(host, ports):
         open_ports = []
         for port in ports:
@@ -33,63 +70,78 @@ def portscan():
                 open_ports.append(port)
         return open_ports
 
+    # Function to scan a range of ports on a host
     def scan_range_ports(host, start_port, end_port):
         open_ports = scan_multiple_ports(host, range(start_port, end_port + 1))
         return open_ports
 
-    if __name__ == '__main__':
-        print("This will scan for open ports.")
-        host = input('Enter the host to scan: ').strip(" ")
+    print("This will scan for open ports.")
 
-        # Get the user's choice of how many ports to scan.
-        choice = input('Do you want to scan (1) a single port, (2) multiple ports, or (3) a range of ports? ')
+    # Get the host (IP address) from the user
+    while True:
+        host = input('Enter the host to scan (IP address): ').strip()
 
-        if choice == '1':
-            # Get the port number to scan.
-            port = int(input('Enter the port number to scan: '))
-
-            if scan_single_port(host, port):
-                print(f'Port {port} is open')
-                append_to_file(f"{host} has an open port of {port}.", "_portscan")
-            else:
-                print(f'Port {port} is closed')
-                append_to_file(f"Port {port} is closed on {host}", "_portscan")
-
-        elif choice == '2':
-            # Get a list of ports to scan.
-            ports = []
-            while True:
-                port = input('Enter a port number to scan (r to run): ')
-                if port == "r":
-                    break
-                else:
-                    ports.append(int(port))
-
-            open_ports = scan_multiple_ports(host, ports)
-
-            if open_ports:
-                print(f'Open ports: {open_ports}')
-                append_to_file(f"{host} has the open ports: {open_ports}", "_portscan")
-            else:
-                print('No open ports found.')
-                append_to_file(f" No open ports found on {host}.")
-
-        elif choice == '3':
-            # Get the start and end ports to scan.
-            start_port = int(input('Enter the start port: '))
-            end_port = int(input('Enter the end port: '))
-
-            open_ports = scan_range_ports(host, start_port, end_port)
-
-            if open_ports:
-                print(f'Open ports: {open_ports}')
-                append_to_file(f"{host} has the open ports: {open_ports}", "_portscan")
-            else:
-                print('No open ports found.')
-                append_to_file(f" No open ports found on {host}.")
-
+        if is_valid_ip_address(host):
+            break  # Valid IP address, break out of the loop
         else:
-            print('Invalid choice.')
+            print('Invalid IP address format. Please enter a valid IP address.')
+
+    # Get the choice from the user
+    choice = get_valid_choice(
+        'Do you want to scan (1) a single port, (2) multiple ports, or (3) a range of ports? ')
+
+    if choice == '1':
+        # Scan a single port
+        port = get_valid_port('Enter the port number to scan: ')
+        if scan_single_port(host, port):
+            print(f'Port {port} is open')
+            append_to_file(f"{host} has an open port of {port}.", "_portscan")
+        else:
+            print(f'Port {port} is closed')
+            append_to_file(f"Port {port} is closed on {host}", "_portscan")
+
+    elif choice == '2':
+        # Scan multiple ports
+        ports = []
+        while True:
+            port = input('Enter a port number to scan (r to run): ')
+            if port == "r":
+                break
+            else:
+                try:
+                    port = int(port)
+                    if 1 <= port <= 65535:
+                        ports.append(port)
+                    else:
+                        print("Invalid port number. Please enter a number between 1 and 65535.")
+                except ValueError:
+                    print("Invalid input. Please enter a valid port number.")
+
+        open_ports = scan_multiple_ports(host, ports)
+
+        if open_ports:
+            print(f'Open ports: {open_ports}')
+            append_to_file(f"{host} has the open ports: {open_ports}", "_portscan")
+        else:
+            print('No open ports found.')
+            append_to_file(f"No open ports found on {host}.", "_portscan")
+
+    elif choice == '3':
+        # Scan a range of ports
+        start_port = get_valid_port('Enter the start port: ')
+        end_port = get_valid_port('Enter the end port: ')
+
+        open_ports = scan_range_ports(host, start_port, end_port)
+
+        if open_ports:
+            print(f'Open ports: {open_ports}')
+            append_to_file(f"{host} has the open ports: {open_ports}", "_portscan")
+        else:
+            print('No open ports found.')
+            append_to_file(f"No open ports found on {host}.", "_portscan")
+
+    else:
+        print('Invalid choice.')
 
     resp = input("Enter 'y' to do a more detailed scan, 'q' to quit or 'x' to return to main menu: ")
     while not (resp in ["q","x","y"]):
@@ -275,4 +327,25 @@ def list_all_users():
         else:
             print(i)
 
+main()
+
+# Exit program function
+def exit_program():
+    print("Exiting...")
+    # Add any cleanup code or additional functionality before exiting
+    exit()
+
+def errcheck(choices,options):
+    options=options
+    for c in choices:
+        if c not in options.keys():
+            choice = input(f"Invalid choice: {c}\nPlease try again (or type q to quit): ")
+            choices = choice.split(",")
+            errcheck(choices,options)
+    return(choices)
+
+
+
+def main():
+    menu()
 main()
