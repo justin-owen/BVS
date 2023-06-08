@@ -15,7 +15,8 @@ def rorq():
 
 def append_to_file(content, scan):
     today = date.today()
-    f = open(f"{today}{scan}.txt", "a")
+    os.makedirs("BVS_logs", exist_ok=True)
+    f = open(f"BVS_logs/{today}{scan}.txt", "a")
     f.write(f"{content}")
     f.close()
 
@@ -49,8 +50,10 @@ def portscan():
 
             if scan_single_port(host, port):
                 print(f'Port {port} is open')
+                append_to_file(f"{host} has an open port of {port}.", "_portscan")
             else:
                 print(f'Port {port} is closed')
+                append_to_file(f"Port {port} is closed on {host}", "_portscan")
 
         elif choice == '2':
             # Get a list of ports to scan.
@@ -66,8 +69,10 @@ def portscan():
 
             if open_ports:
                 print(f'Open ports: {open_ports}')
+                append_to_file(f"{host} has the open ports: {open_ports}", "_portscan")
             else:
                 print('No open ports found.')
+                append_to_file(f" No open ports found on {host}.")
 
         elif choice == '3':
             # Get the start and end ports to scan.
@@ -78,8 +83,10 @@ def portscan():
 
             if open_ports:
                 print(f'Open ports: {open_ports}')
+                append_to_file(f"{host} has the open ports: {open_ports}", "_portscan")
             else:
                 print('No open ports found.')
+                append_to_file(f" No open ports found on {host}.")
 
         else:
             print('Invalid choice.')
@@ -97,6 +104,7 @@ def portscan():
                                   capture_output=True, text=True)
             out = str(scan.stdout)
             print(out)
+            append_to_file(out, "_portscan")
         elif choice == "2":
             for i in ports:
                 str(i)
@@ -105,12 +113,14 @@ def portscan():
                                   capture_output=True, text=True)
             out = str(scan.stdout)
             print(out)
+            append_to_file(out, "_portscan")
         elif choice == "3":
             range_of_ports = f"{start_port}-{end_port}"
             scan = subprocess.run(["nmap", "-sV", "--script", "vulners", "-p", f"{range_of_ports}", f"{host}"],
                                   capture_output=True, text=True)
             out = str(scan.stdout)
             print(out)
+            append_to_file(out, "_portscan")
 
 
 def aptupd():
@@ -120,6 +130,7 @@ def aptupd():
     os.system("sudo apt update")
     print("Upgradeable apps: ")
     os.system("apt list --upgradeable")
+    append_to_file(os.system("apt list --upgradeable"), "_updatesAvail")
 
 def list_sudo_users():
     # !/usr/bin/python3
@@ -140,6 +151,7 @@ def list_sudo_users():
     userclean = userclean.replace("\\n\'", "")
     #prints list
     print(userclean)
+    append_to_file(userclean, "_sudoUsers")
 
 def permissions_check():
     def get_permissions(file_path):
@@ -161,6 +173,7 @@ def permissions_check():
             if subprocess.run(['test', '-d', ssh_dir]).returncode == 0:
                 ssh_permissions = get_permissions(ssh_dir)
                 print(f'Permissions for {ssh_dir} (User: {user}): {ssh_permissions}')
+                append_to_file(f'Permissions for {ssh_dir} (User: {user}): {ssh_permissions}', "_permissions")
             else:
                 print(f'User {user} has no .ssh folder')
 
@@ -176,6 +189,7 @@ def file_name_password():
         file_paths = ls_output.stdout.splitlines()
         for file_path in file_paths:
             password_files.append(file_path)
+        append_to_file(f"The files that contain passwords are: {password_files}", "_passwordFiles")
         return password_files
 
     def main():
@@ -188,14 +202,19 @@ def file_name_password():
                 print(f'Found password file(s) for user {user}:')
                 for file_path in password_files:
                     print(file_path)
+                    append_to_file(f"The file that contains passwords for {user} is: {file_path}", "_passwordFiles")
                 print()
             else:
                 print(f'No obvious password files found in {user} home directory.')
+                append_to_file(f'No obvious password files found in {user} home directory.', "_passwordFiles")
 
     if __name__ == '__main__':
         main()
 
 def main():
+    if os.getuid() != 0:
+        print("You must run this as a user with sudo permissions")
+        exit(1)
     print(
         "Welcome to the Basic Vulnerability Scanner!\nTo begin the scan choose from the following options by entering the numbers associated:\n"
         "1: Port scan\n2: Out of date software scan\n3: List all users with Sudo permissions\n4: List all existing users\n5: Check Permissions of /etc/shadow files and permissions of .ssh folders\n"
@@ -247,6 +266,8 @@ def list_all_users():
     p3 = subprocess.run(['cut', "-d:", "-f1"], stdin=p2.stdout, capture_output=True)
     s1 = str(p3.stdout)
     output = s1.split("\\n")
+    output[0] = output[0].strip("b\'")
+    append_to_file(f"The existing users are: {output}")
     for i in output:
         if output[0]:
             string = i.strip("b\'")
