@@ -207,7 +207,7 @@ def list_sudo_users():
     sudo_group = sudo1.split(":")
     sudo_users = sudo_group[-1]
     output = sudo_users.replace(",","\n")
-    final = f"The following users have sudo permissions:\n{output}"
+    final = f"\nThe following users have sudo permissions:\n{output}"
     print(final)
     f.close()
     append_to_file(final, "_sudoUsers")
@@ -270,10 +270,10 @@ def file_name_password():
         # Call the function to search for password files in the user directory
         password_files = find_password_files(user_dir)
         if password_files:
-            print(f'Found password file(s) for user {user}:')
+            print(f'Found file(s) with password in the name for user {user}:')
             for file_path in password_files:
                 print(file_path)
-                append_to_file(f"The file that contains passwords for {user} is: {file_path}", "_passwordFiles")
+                append_to_file(f"The following file(s) may contain passwords for {user} is: {file_path}", "_passwordFiles")
             print()
         else:
             print(f'No obvious password files found in {user} home directory.\n')
@@ -317,7 +317,7 @@ def pass_checker():
     os.system(unshcom)
 
     # requests a wordlist
-    loc = input("Johntheripper requires a wordlist file of common passwords. Please provide file (text file, one password per line: ")
+    loc = input("Johntheripper requires a wordlist file of common passwords. Please provide file (text file, one password per line): ")
     # error checks wordlist location input
     while not os.path.isfile(loc):
         loc = input("File not found. Please enter a valid file, or q to return to menu: ")
@@ -407,7 +407,7 @@ def menu():
     print("4. List all the existing users.")
     print("5. Check permissions for /etc/shadow and .ssh directories for all users.")
     print("6. Check to see if there are any obvious password files in users home directory.")
-    print("7. Check password strength of all users.")
+    print("7. Check for vulnerable passwords.")
     print("q. Exit")
     choice = input("Enter your choice (separated by commas for multiple choices): ").strip()
     choices = choice.split(",")
@@ -438,15 +438,17 @@ def errcheck(choices, options):
     # ensures dictionary remains in memory if they're sent back
     options = options
     # error checker loops through user inputted choices
+    err=[]
     for c in choices:
         if c not in options.keys():
-            # if they're not in the dictionary, asks them to re input their choices
-            choice = input(f"Invalid choice: {c}\nPlease try again (or type q to quit): ").strip()
-
+            err.append(c)
+    if len(err) != 0:
+            choice = input(f"Invalid choice(s): {err}\nPlease try again (or type q to quit): ").strip()
             choices = choice.split(",")
             # loops back to error check new inputs
-            errcheck(choices, options)
+            choices=errcheck(choices, options)
     # once their choices are all viable options, sends the proper lists of choices back to main
+    # print("choice")
     return choices
 
 
