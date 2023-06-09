@@ -8,13 +8,19 @@ from datetime import date
 from datetime import datetime
 
 
+# function to append results of scans to a file in a directory
 def append_to_file(content, scan):
+    # gets the current date to add to the name of the file
     today = date.today()
+    # creates the directory
     os.makedirs("BVS_logs", exist_ok=True)
+    # appends to the file within the file path listed below, if it doesn't exist it creates the file
     f = open(f"BVS_logs/{today}{scan}.txt", "a")
     f.write(f"{content}\n")
     f.close()
 
+
+# port scan function
 def portscan():
     # Function to check if an IP address is valid
     def is_valid_ip_address(ip):
@@ -144,7 +150,7 @@ def portscan():
 
     else:
         print('Invalid choice.')
-
+    # Asks if you want to get a more detailed scan using nmap's vulners script with the ability to quit and go to the main menu
     resp = input("Enter y/n to do a more detailed scan, 'q' to quit or 'x' to return to main menu: ")
     while not (resp in ["q", "x", "y", "n"]):
         resp = input("Invalid input, please try again: ")
@@ -153,6 +159,7 @@ def portscan():
     elif resp == "x":
         main()
     elif resp == "y":
+        # accounts for the different choices chosen at the beginning of the port scan
         if choice == "1":
             scan = subprocess.run(["nmap", "-sV", "--script", "vulners", "-p", f"{port}", f"{host}"],
                                   capture_output=True, text=True)
@@ -177,6 +184,7 @@ def portscan():
             append_to_file(out, "_portscan")
 
 
+# function that gets a list of available upgrades on your system
 def aptupd():
     # print("You chose apt update and it worked. yay")
     print("This will check for out of date software packages:\n")
@@ -186,6 +194,8 @@ def aptupd():
     os.system("apt list --upgradeable")
     append_to_file(os.system("apt list --upgradeable"), "_updatesAvail")
 
+
+# function that gets a list of users within the sudo group
 def list_sudo_users():
     # !/usr/bin/python3
     # print("Users with Sudo permissions: ")
@@ -209,6 +219,8 @@ def list_sudo_users():
     print(userclean)
     append_to_file(userclean, "_sudoUsers")
 
+
+# function that checks permissions of sensitive files such as the .ssh file and the shadow file
 def permissions_check():
 
     def get_permissions(file_path):
@@ -243,6 +255,7 @@ def permissions_check():
     get_directs()
 
 
+# function that checks for the word "password" within the users home directory
 def file_name_password():
     def find_password_files(root_dir):
         password_files = []
@@ -278,12 +291,15 @@ def file_name_password():
 
     home_finder()
 
+
+# function that checks the passwords of all users and compares their hashes ton a wordlist using john the ripper
 def pass_checker():
-    #Checks to see if johntheripper is installed
-    p1=subprocess.Popen(["dpkg","--list"],stdout=subprocess.PIPE)
-    p2=subprocess.run(['grep','john'],stdin=p1.stdout,capture_output=True)
-    op2=str(p2.stdout)
-    #prompts user to install
+    # Checks to see if johntheripper is installed
+    p1 = subprocess.Popen(["dpkg", "--list"], stdout=subprocess.PIPE)
+    p2 = subprocess.run(['grep', 'john'], stdin=p1.stdout, capture_output=True)
+    op2 = str(p2.stdout)
+
+    # prompts user to install when not installed
     while "john" not in op2:
         i = input(
             "This scan utilizes the third party software johntheripper. This is not currently detected on your device. Would you like to install? (y/n): ")
@@ -359,6 +375,8 @@ def pass_checker():
             line = p1[i].split(":")
             print(line[0])
 
+
+# function that lists all existing users
 def list_all_users():
     print("Existing Users: ")
     # greps passwd file for users with active logins
@@ -376,12 +394,10 @@ def list_all_users():
     append_to_file(f"The existing users are: {output}", "_allUsers")
     # prints output to terminal
     for i in output:
-        if output[0]:
-            string = i.strip("b\'")
-            print(string)
-        else:
-            print(i)
+        print(i)
 
+
+# function that executes all scans
 def run_all_opts():
     portscan()
     aptupd()
@@ -391,7 +407,7 @@ def run_all_opts():
     file_name_password()
     pass_checker()
 
-# main()
+
 # Menu function
 def menu():
     options = {
@@ -437,8 +453,12 @@ def exit_program():
     # Cleanup code here before exiting
     exit()
 
-def errcheck(choices,options):
-    options=options
+
+# function that error checks the menu choices
+def errcheck(choices, options):
+    # ensures dictionary remains in memory if they're sent back
+    options = options
+    # error checker loops through user inputted choices
     for c in choices:
         if c not in options.keys():
             # if they're not in the dictionary, asks them to re input their choices
@@ -450,8 +470,8 @@ def errcheck(choices,options):
     # once their choices are all viable options, sends the proper lists of choices back to main
     return (choices)
 
-
-
 def main():
     menu()
-main()
+
+if __name__ == '__main__':
+    main()
