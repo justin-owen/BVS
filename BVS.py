@@ -1,6 +1,6 @@
-
 import socket
 import os
+import re
 import subprocess
 import time
 import datetime
@@ -146,8 +146,8 @@ def portscan():
         print('Invalid choice.')
 
     resp = input("Enter y/n to do a more detailed scan, 'q' to quit or 'x' to return to main menu: ")
-    while not (resp in ["q","x","y","n"]):
-        resp=input("Invalid input, please try again: ")
+    while not (resp in ["q", "x", "y", "n"]):
+        resp = input("Invalid input, please try again: ")
     if resp == "q":
         exit()
     elif resp == "x":
@@ -188,24 +188,24 @@ def aptupd():
 
 def list_sudo_users():
     # !/usr/bin/python3
-    #print("Users with Sudo permissions: ")
-    #first bash command to read group file
+    # print("Users with Sudo permissions: ")
+    # first bash command to read group file
     p1 = subprocess.Popen(["cat", "/etc/group"], stdout=subprocess.PIPE)
-    #finds sudo group
+    # finds sudo group
     p2 = subprocess.run(['grep', "^sudo"], stdin=p1.stdout, capture_output=True)
-    #ensures weird subprocess output is a workable string, this may not be necessary
+    # ensures subprocess output is a workable string, this may not be necessary
     s1 = str(p2.stdout)
-    #divides string into a nice list so we can get rid of unneeded text
+    # divides string into a nice list so we can get rid of unneeded text
     l1 = s1.split(":")
-    #pulls out the user list
+    # pulls out the user list
     sdusers = (l1[-1])
-    #changes single line list into a column list
+    # changes single line list into a column list
     userclean = sdusers.replace(",", "\n")
-    #cleans up a stray \n' that was at the end of the list, left over from the original file formatting
+    # cleans up a stray \n' that was at the end of the list, left over from the original file formatting
     userclean = userclean.replace("\\n\'", "")
-    ctime=datetime.now()
+    ctime = datetime.now()
     userclean = str(f"The following users currently have Sudo Permissions as of {ctime}: \n{userclean}\n")
-    #prints list
+    # prints list
     print(userclean)
     append_to_file(userclean, "_sudoUsers")
 
@@ -285,50 +285,96 @@ def pass_checker():
     op2=str(p2.stdout)
     #prompts user to install
     while "john" not in op2:
-        i=input("This scan utilizes the third party software johntheripper. This is not currently installed on your device. Would you like to install? (y/n): ")
-        i=i.lower()
-        while i not in ["y","n"]:
-            i=input("Invalid input. Would you like to install? (y/n): ")
-        if i=="y":
+        i = input(
+            "This scan utilizes the third party software johntheripper. This is not currently detected on your device. Would you like to install? (y/n): ")
+        i = i.lower()
+        while i not in ["y", "n"]:
+            i = input("Invalid input. Would you like to install? (y/n): ")
+        if i == "y":
             os.system("sudo apt install john")
-        elif i=="n":
+        elif i == "n":
             print("Scan requires johntheripper. Returning to main menu...")
             time.sleep(2)
-            main()
-    os.system("sudo unshadow /etc/passwd /etc/shadow > unshad.txt")
-    loc=input("Johntheripper requires a wordlist file of common passwords. Please provide file (text file, one password per line: ")
-    p2=subprocess.run(['ls',loc],capture_output=True,text=True)
-    print(p2.stdout)
-    #erp2=int(p2.stderr)
-    while len(p2.stdout)==0:
-        loc=input("File not found. please provide valid file: ")
-        p2=subprocess.run(['ls',loc],capture_output=True)
-    com=str(f"--wordlist={loc}")
-    subprocess.run(["sudo","john",com,"unshad.txt"],capture_output=True)
-    com=str(f'sudo john --show unshad.txt')
-    p1=subprocess.run(["sudo","john","--show","unshad.txt"],capture_output=True,text=True)
-    #print(p1.stdout)
-    p1=p1.stdout.splitlines()
-    nump=int(p1[-1][0])
+    # default shadow & passwd locations
+    locshad = "/etc/shadow"
+    locpwd = "/etc/passwd"
+
+    # verify shadow file is in default location
+    p2 = subprocess.run(['ls', locshad], capture_output=True, text=True)
+
+    # if shadow isn't in default, prompts user for file
+    while len(p2.stdout) == 0:
+        locshad = input("Default shadow file not found in /etc/. Please provide path to shadow file: ")
+        # checks to see if file exists-will not detect if its not a shadow style file
+        p2 = subprocess.run(['ls', locshad], capture_output=True)
+
+    # verify passwd file is in default loc
+    p2 = subprocess.run(['ls', locpwd], capture_output=True, text=True)
+
+    # if passwd file isn't in default, prompts user for file
+    while len(p2.stdout) == 0:
+        locshad = input("Default passwd file not found in /etc/. Please provide path to shadow file: ")
+        # file existence check
+        p2 = subprocess.run(['ls', locshad], capture_output=True)
+
+    # strings together and runs the unshadow command with the passwd and shadow locations
+    unshcom = str(f"sudo unshadow {locpwd} {locshad} > unshad.txt")
+    os.system(unshcom)
+
+    # requests a wordlist
+    loc = input(
+        "Johntheripper requires a wordlist file of common passwords. Please provide file (text file, one password per line: ")
+    p2 = subprocess.run(['ls', loc], capture_output=True, text=True)
+
+    # error checks wordlist location input
+    while len(p2.stdout) == 0:
+        loc = input("File not found. please provide valid file: ")
+        # file existence check
+        p2 = subprocess.run(['ls', loc], capture_output=True)
+
+    # strings together the wordlist portion of the john command
+    com = str(f"--wordlist={loc}")
+
+    # runs full john cracking command to crack any not-already-cracked passwords
+    subprocess.run(["sudo", "john", com, "unshad.txt"], capture_output=True)
+
+    # runs the john --show command to retrieve all cracked users with cracked passwords
+    p1 = subprocess.run(["sudo", "john", "--show", "unshad.txt"], capture_output=True, text=True)
+
+    # splits each line from command to an ordered list
+    p1 = p1.stdout.splitlines()
+    # first characters of last line of the command output describes number of cracked passwords
+    nump = re.search("\d+", p1[-1])
+    nump = nump.group(0)
+    nump = int(nump)
+
+    # if there are 0 cracked passwords, reports it. Otherwise, prints usernames of cracked passwords
     if nump == 0:
         print("No weak passwords found. Returning to main menu.\n")
         main()
     else:
         print(f"{nump} weak password(s) found. The following users have weak passwords: ")
-        i=0
+        i = 0
         for i in range(nump):
-            line=p1[i].split(":")
+            line = p1[i].split(":")
             print(line[0])
 
 def list_all_users():
     print("Existing Users: ")
+    # greps passwd file for users with active logins
     p2 = subprocess.Popen(["grep", "-v", "false\|nologin\|sync", "/etc/passwd"], stdout=subprocess.PIPE)
     p3 = subprocess.run(['cut', "-d:", "-f1"], stdin=p2.stdout, capture_output=True)
     s1 = str(p3.stdout)
+
+    # splits out put using new line to display a neat list
     output = s1.split("\\n")
+    # removes erroneous b\ left over from subprocess
     output[0] = output[0].strip("b\'")
+    # removes white space
     output = output[:-1]
+    # sends results to file
     append_to_file(f"The existing users are: {output}", "_allUsers")
+    # prints output to terminal
     for i in output:
         if output[0]:
             string = i.strip("b\'")
@@ -358,6 +404,7 @@ def menu():
         "7": pass_checker,
         "q": exit_program
     }
+    print("Welcome to the Basic Vulnerability Scanner by Var-I/O Brothers\n\n")
     print("Main Menu:")
     print("1. Run port(s) scan.")
     print("2. Check application for updates.")
@@ -383,6 +430,7 @@ def menu():
     else:
         menu()
 
+
 # Exit program function
 def exit_program():
     print("Exiting...")
@@ -393,10 +441,14 @@ def errcheck(choices,options):
     options=options
     for c in choices:
         if c not in options.keys():
+            # if they're not in the dictionary, asks them to re input their choices
             choice = input(f"Invalid choice: {c}\nPlease try again (or type q to quit): ")
+
             choices = choice.split(",")
-            errcheck(choices,options)
-    return(choices)
+            #loops back to error check new inputs
+            errcheck(choices, options)
+    # once their choices are all viable options, sends the proper lists of choices back to main
+    return (choices)
 
 
 
