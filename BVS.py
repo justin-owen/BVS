@@ -23,6 +23,7 @@ def append_to_file(content, scan):
 # Function to check if an IP address is valid
 def is_valid_ip_address(ip):
     try:
+        # inet_pton returns value 0(True) if the format is correct
         socket.inet_pton(socket.AF_INET, ip)  # Check IPv4 format
         return True
     except socket.error:
@@ -31,6 +32,7 @@ def is_valid_ip_address(ip):
             return True
         except socket.error:
             return False
+
 
 # Function to get a valid port number from the user
 def get_valid_port(prompt):
@@ -222,6 +224,7 @@ def get_permissions(file_path):
     except subprocess.CalledProcessError:
         return None
 
+
 def permissions_check():
     # Get and print the permissions for the /etc/shadow file
     etc_shadow_permissions = get_permissions('/etc/shadow')
@@ -257,6 +260,7 @@ def find_password_files(root_dir):
     append_to_file(f"The files that contain passwords are: {password_files}\n", "_passwordFiles")
     return password_files
 
+
 def file_name_password():
     home_dir = '/home'
     # Get a list of all users in the home directory
@@ -274,8 +278,6 @@ def file_name_password():
         else:
             print(f'No obvious password files found in {user} home directory.\n')
             append_to_file(f'No obvious password files found in {user} home directory.\n', "_passwordFiles")
-
-
 
 
 # function that checks the passwords of all users and compares their hashes ton a wordlist using john the ripper
@@ -446,6 +448,7 @@ def errcheck(choices, options):
             errcheck(choices, options)
     # once their choices are all viable options, sends the proper lists of choices back to main
     return choices
+
 
 def main():
     menu()
