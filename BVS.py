@@ -30,10 +30,13 @@ def portscan():
 
     # Function to get a valid port number from the user
     def get_valid_port(prompt):
+        # Loop until a valid port number is entered
         while True:
             port = input(prompt)
             try:
+                # Attempt to convert the input to an integer
                 port = int(port)
+                # Check if the port number is within valid range
                 if 1 <= port <= 65535:
                     return port
                 else:
@@ -53,13 +56,17 @@ def portscan():
 
     # Function to scan a single port on a host
     def scan_single_port(host, port):
+        # Creates a new socket object
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             s.settimeout(1)
+            # Use the socket object to establish a TCP connection with host
+            # If return value is 0 connect is established
             return s.connect_ex((host, port)) == 0
 
     # Function to scan multiple ports on a host
     def scan_multiple_ports(host, ports):
         open_ports = []
+        # Iterates over a list of ports and calls scan_single_port to scan all ports
         for port in ports:
             if scan_single_port(host, port):
                 open_ports.append(port)
@@ -203,49 +210,61 @@ def list_sudo_users():
     append_to_file(userclean, "_sudoUsers")
 
 def permissions_check():
+
     def get_permissions(file_path):
         try:
+            # Attempt to run ls -ld command to get the permissions of the specified file or directory
             ls_output = subprocess.run(['ls', '-ld', file_path], capture_output=True, text=True)
+            # Extract permissions from the command output
             permissions = ls_output.stdout.split()[0]
             return permissions
         except subprocess.CalledProcessError:
             return None
 
-    def main():
+    def get_directs():
+        # Get and print the permissions for the /etc/shadow file
         etc_shadow_permissions = get_permissions('/etc/shadow')
         print(f'Permissions for /etc/shadow: {etc_shadow_permissions}')
 
+        # Iterate over the users in the /home directory
         home_dir = '/home'
         users = subprocess.run(['ls', '-1', home_dir], capture_output=True, text=True).stdout.splitlines()
         for user in users:
+            # Check if the user has a .ssh directory
             ssh_dir = f'{home_dir}/{user}/.ssh'
             if subprocess.run(['test', '-d', ssh_dir]).returncode == 0:
+                # If the .ssh directory exists, get and print its permissions
                 ssh_permissions = get_permissions(ssh_dir)
                 print(f'Permissions for {ssh_dir} (User: {user}): {ssh_permissions}')
                 append_to_file(f'Permissions for {ssh_dir} (User: {user}): {ssh_permissions}', "_permissions")
             else:
                 print(f'User {user} has no .ssh folder')
 
-    if __name__ == '__main__':
-        main()
+    get_directs()
 
 
 def file_name_password():
     def find_password_files(root_dir):
         password_files = []
+        # Runs command in terminal to run find command to search for files with password in name
         ls_output = subprocess.run(['find', root_dir, '-type', 'f', '-iname', 'password'], capture_output=True,
                                    text=True)
+        # Split the output into individual file paths
         file_paths = ls_output.stdout.splitlines()
         for file_path in file_paths:
+            # Add each file path to the list of password files
             password_files.append(file_path)
+            # Append the list of password files to a seperate file for reference
         append_to_file(f"The files that contain passwords are: {password_files}\n", "_passwordFiles")
         return password_files
 
-    def main():
+    def home_finder():
         home_dir = '/home'
+        # Get a list of all users in the home directory
         users = subprocess.run(['ls', '-1', home_dir], capture_output=True, text=True).stdout.splitlines()
         for user in users:
             user_dir = os.path.join(home_dir, user)
+            # Call the function to search for password files in the user directory
             password_files = find_password_files(user_dir)
             if password_files:
                 print(f'Found password file(s) for user {user}:')
@@ -257,8 +276,7 @@ def file_name_password():
                 print(f'No obvious password files found in {user} home directory.\n')
                 append_to_file(f'No obvious password files found in {user} home directory.\n', "_passwordFiles")
 
-    if __name__ == '__main__':
-        main()
+    home_finder()
 
 def pass_checker():
     #Checks to see if johntheripper is installed
@@ -368,7 +386,7 @@ def menu():
 # Exit program function
 def exit_program():
     print("Exiting...")
-    # Add any cleanup code or additional functionality before exiting
+    # Cleanup code here before exiting
     exit()
 
 def errcheck(choices,options):
