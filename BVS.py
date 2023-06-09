@@ -1,3 +1,4 @@
+#!/usr/bin/python3
 import socket
 import os
 import re
@@ -85,6 +86,7 @@ def scan_multiple_ports(host, ports):
 
 def portscan():
     # Get the host (IP address) from the user
+    print("This will scan for open ports.")
     while True:
         host = input('Enter the host to scan (IP address): ').strip()
 
@@ -196,7 +198,6 @@ def aptupd():
 
 # function that gets a list of users within the sudo group
 def list_sudo_users():
-    # !/usr/bin/python3
     # print("Users with Sudo permissions: ")
     # first bash command to read group file
     p1 = subprocess.Popen(["cat", "/etc/group"], stdout=subprocess.PIPE)
@@ -220,75 +221,70 @@ def list_sudo_users():
 
 
 # function that checks permissions of sensitive files such as the .ssh file and the shadow file
-def permissions_check():
-
-    def get_permissions(file_path):
-        try:
-            # Attempt to run ls -ld command to get the permissions of the specified file or directory
-            ls_output = subprocess.run(['ls', '-ld', file_path], capture_output=True, text=True)
-            # Extract permissions from the command output
-            permissions = ls_output.stdout.split()[0]
-            return permissions
-        except subprocess.CalledProcessError:
-            return None
+def get_permissions(file_path):
+    try:
+        # Attempt to run ls -ld command to get the permissions of the specified file or directory
+        ls_output = subprocess.run(['ls', '-ld', file_path], capture_output=True, text=True)
+        # Extract permissions from the command output
+        permissions = ls_output.stdout.split()[0]
+        return permissions
+    except subprocess.CalledProcessError:
+        return None
 
 def permissions_check():
     # Get and print the permissions for the /etc/shadow file
     etc_shadow_permissions = get_permissions('/etc/shadow')
     print(f'Permissions for /etc/shadow: {etc_shadow_permissions}')
 
-        # Iterate over the users in the /home directory
-        home_dir = '/home'
-        users = subprocess.run(['ls', '-1', home_dir], capture_output=True, text=True).stdout.splitlines()
-        for user in users:
-            # Check if the user has a .ssh directory
-            ssh_dir = f'{home_dir}/{user}/.ssh'
-            if subprocess.run(['test', '-d', ssh_dir]).returncode == 0:
-                # If the .ssh directory exists, get and print its permissions
-                ssh_permissions = get_permissions(ssh_dir)
-                print(f'Permissions for {ssh_dir} (User: {user}): {ssh_permissions}')
-                append_to_file(f'Permissions for {ssh_dir} (User: {user}): {ssh_permissions}', "_permissions")
-            else:
-                print(f'User {user} has no .ssh folder')
-
-    get_directs()
+    # Iterate over the users in the /home directory
+    home_dir = '/home'
+    users = subprocess.run(['ls', '-1', home_dir], capture_output=True, text=True).stdout.splitlines()
+    for user in users:
+        # Check if the user has a .ssh directory
+        ssh_dir = f'{home_dir}/{user}/.ssh'
+        if subprocess.run(['test', '-d', ssh_dir]).returncode == 0:
+            # If the .ssh directory exists, get and print its permissions
+            ssh_permissions = get_permissions(ssh_dir)
+            print(f'Permissions for {ssh_dir} (User: {user}): {ssh_permissions}')
+            append_to_file(f'Permissions for {ssh_dir} (User: {user}): {ssh_permissions}', "_permissions")
+        else:
+            print(f'User {user} has no .ssh folder')
 
 
 # function that checks for the word "password" within the users home directory
+def find_password_files(root_dir):
+    password_files = []
+    # Runs command in terminal to run find command to search for files with password in name
+    ls_output = subprocess.run(['find', root_dir, '-type', 'f', '-iname', '*password*'], capture_output=True,
+                               text=True)
+    # Split the output into individual file paths
+    file_paths = ls_output.stdout.splitlines()
+    for file_path in file_paths:
+        # Add each file path to the list of password files
+        password_files.append(file_path)
+        # Append the list of password files to a seperate file for reference
+    append_to_file(f"The files that contain passwords are: {password_files}\n", "_passwordFiles")
+    return password_files
+
 def file_name_password():
-    def find_password_files(root_dir):
-        password_files = []
-        # Runs command in terminal to run find command to search for files with password in name
-        ls_output = subprocess.run(['find', root_dir, '-type', 'f', '-iname', 'password'], capture_output=True,
-                                   text=True)
-        # Split the output into individual file paths
-        file_paths = ls_output.stdout.splitlines()
-        for file_path in file_paths:
-            # Add each file path to the list of password files
-            password_files.append(file_path)
-            # Append the list of password files to a seperate file for reference
-        append_to_file(f"The files that contain passwords are: {password_files}\n", "_passwordFiles")
-        return password_files
+    home_dir = '/home'
+    # Get a list of all users in the home directory
+    users = subprocess.run(['ls', '-1', home_dir], capture_output=True, text=True).stdout.splitlines()
+    for user in users:
+        user_dir = os.path.join(home_dir, user)
+        # Call the function to search for password files in the user directory
+        password_files = find_password_files(user_dir)
+        if password_files:
+            print(f'Found password file(s) for user {user}:')
+            for file_path in password_files:
+                print(file_path)
+                append_to_file(f"The file that contains passwords for {user} is: {file_path}", "_passwordFiles")
+            print()
+        else:
+            print(f'No obvious password files found in {user} home directory.\n')
+            append_to_file(f'No obvious password files found in {user} home directory.\n', "_passwordFiles")
 
-    def home_finder():
-        home_dir = '/home'
-        # Get a list of all users in the home directory
-        users = subprocess.run(['ls', '-1', home_dir], capture_output=True, text=True).stdout.splitlines()
-        for user in users:
-            user_dir = os.path.join(home_dir, user)
-            # Call the function to search for password files in the user directory
-            password_files = find_password_files(user_dir)
-            if password_files:
-                print(f'Found password file(s) for user {user}:')
-                for file_path in password_files:
-                    print(file_path)
-                    append_to_file(f"The file that contains passwords for {user} is: {file_path}", "_passwordFiles")
-                print()
-            else:
-                print(f'No obvious password files found in {user} home directory.\n')
-                append_to_file(f'No obvious password files found in {user} home directory.\n', "_passwordFiles")
 
-    home_finder()
 
 
 # function that checks the passwords of all users and compares their hashes ton a wordlist using john the ripper
@@ -314,38 +310,26 @@ def pass_checker():
     locshad = "/etc/shadow"
     locpwd = "/etc/passwd"
 
-    # verify shadow file is in default location
-    p2 = subprocess.run(['ls', locshad], capture_output=True, text=True)
-
     # if shadow isn't in default, prompts user for file
-    while len(p2.stdout) == 0:
+    while not os.path.isfile(locshad):
         locshad = input("Default shadow file not found in /etc/. Please provide path to shadow file: ")
         # checks to see if file exists-will not detect if its not a shadow style file
-        p2 = subprocess.run(['ls', locshad], capture_output=True)
 
     # verify passwd file is in default loc
-    p2 = subprocess.run(['ls', locpwd], capture_output=True, text=True)
-
-    # if passwd file isn't in default, prompts user for file
-    while len(p2.stdout) == 0:
-        locshad = input("Default passwd file not found in /etc/. Please provide path to shadow file: ")
-        # file existence check
-        p2 = subprocess.run(['ls', locshad], capture_output=True)
+    while not os.path.isfile(locpwd):
+        locpwd = input("Default passwd file not found in /etc/. Please provide path to shadow file: ")
 
     # strings together and runs the unshadow command with the passwd and shadow locations
     unshcom = str(f"sudo unshadow {locpwd} {locshad} > unshad.txt")
     os.system(unshcom)
 
     # requests a wordlist
-    loc = input(
-        "Johntheripper requires a wordlist file of common passwords. Please provide file (text file, one password per line: ")
-    p2 = subprocess.run(['ls', loc], capture_output=True, text=True)
-
+    loc = input("Johntheripper requires a wordlist file of common passwords. Please provide file (text file, one password per line: ")
     # error checks wordlist location input
-    while len(p2.stdout) == 0:
-        loc = input("File not found. please provide valid file: ")
-        # file existence check
-        p2 = subprocess.run(['ls', loc], capture_output=True)
+    while not os.path.isfile(loc):
+        loc = input("File not found. Please enter a valid file, or q to return to menu: ")
+        if loc == "q":
+            main()
 
     # strings together the wordlist portion of the john command
     com = str(f"--wordlist={loc}")
@@ -366,7 +350,7 @@ def pass_checker():
     # if there are 0 cracked passwords, reports it. Otherwise, prints usernames of cracked passwords
     if nump == 0:
         print("No weak passwords found. Returning to main menu.\n")
-        main()
+        menu()
     else:
         print(f"{nump} weak password(s) found. The following users have weak passwords: ")
         i = 0
@@ -377,22 +361,25 @@ def pass_checker():
 
 # function that lists all existing users
 def list_all_users():
+    userlines=[]
+    lusers=[]
     print("Existing Users: ")
     # greps passwd file for users with active logins
-    p2 = subprocess.Popen(["grep", "-v", "false\|nologin\|sync", "/etc/passwd"], stdout=subprocess.PIPE)
-    p3 = subprocess.run(['cut', "-d:", "-f1"], stdin=p2.stdout, capture_output=True)
-    s1 = str(p3.stdout)
-
-    # splits out put using new line to display a neat list
-    output = s1.split("\\n")
-    # removes erroneous b\ left over from subprocess
-    output[0] = output[0].strip("b\'")
-    # removes white space
-    output = output[:-1]
+    locpwd="/etc/passwd"
+    while not os.path.isfile(locpwd):
+        locpwd=input("This module utilizes the passwd file. It was not found in the /etc/ directory. Please provide path to system passwd file: ")
+    with open(locpwd) as f:
+        for line in f.readlines():
+            nonuser=re.search("false|nologin|sync",line)
+            if not nonuser:
+                userlines.append(line)
+    for l in userlines:
+        user=l.split(":")
+        lusers.append(user[0])
     # sends results to file
-    append_to_file(f"The existing users are: {output}", "_allUsers")
+    append_to_file(f"The existing users are: {lusers}", "_allUsers")
     # prints output to terminal
-    for i in output:
+    for i in lusers:
         print(i)
 
 
@@ -419,7 +406,7 @@ def menu():
         "7": pass_checker,
         "q": exit_program
     }
-    print("Welcome to the Basic Vulnerability Scanner by Var-I/O Brothers\n\n")
+    print("\nWelcome to the Basic Vulnerability Scanner by Var-I/O Brothers\n")
     print("Main Menu:")
     print("1. Run port(s) scan.")
     print("2. Check application for updates.")
