@@ -4,7 +4,6 @@ import os
 import re
 import subprocess
 import time
-import datetime
 from datetime import date
 from datetime import datetime
 
@@ -77,12 +76,10 @@ def scan_multiple_ports(host, ports):
             open_ports.append(port)
     return open_ports
 
-    # Function to scan a range of ports on a host
-    def scan_range_ports(host, start_port, end_port):
-        open_ports = scan_multiple_ports(host, range(start_port, end_port + 1))
-        return open_ports
-
-    print("This will scan for open ports.")
+# Function to scan a range of ports on a host
+def scan_range_ports(host, start_port, end_port):
+    open_ports = scan_multiple_ports(host, range(start_port, end_port + 1))
+    return open_port
 
 def portscan():
     # Get the host (IP address) from the user
@@ -101,7 +98,7 @@ def portscan():
 
     if choice == '1':
         # Scan a single port
-        port = get_valid_port('Enter the port number to scan: ')
+        port = get_valid_port('Enter the port number to scan: ').strip()
         if scan_single_port(host, port):
             print(f'Port {port} is open')
             append_to_file(f"{host} has an open port of {port}.", "_portscan")
@@ -113,7 +110,7 @@ def portscan():
         # Scan multiple ports
         ports = []
         while True:
-            port = input('Enter a port number to scan (r to run): ')
+            port = input('Enter a port number to scan (r to run): ').strip()
             if port == "r":
                 break
             else:
@@ -137,8 +134,8 @@ def portscan():
 
     elif choice == '3':
         # Scan a range of ports
-        start_port = get_valid_port('Enter the start port: ')
-        end_port = get_valid_port('Enter the end port: ')
+        start_port = get_valid_port('Enter the start port: ').strip()
+        end_port = get_valid_port('Enter the end port: ').strip()
 
         open_ports = scan_range_ports(host, start_port, end_port)
 
@@ -154,7 +151,7 @@ def portscan():
     # Asks if you want to get a more detailed scan using nmap's vulners script with the ability to quit and go to the main menu
     resp = input("Enter y/n to do a more detailed scan, 'q' to quit or 'x' to return to main menu: ")
     while not (resp in ["q", "x", "y", "n"]):
-        resp = input("Invalid input, please try again: ")
+        resp = input("Invalid input, please try again: ").strip()
     if resp == "q":
         exit()
     elif resp == "x":
@@ -162,7 +159,7 @@ def portscan():
     elif resp == "y":
         # accounts for the different choices chosen at the beginning of the port scan
         if choice == "1":
-            scan = subprocess.run(["nmap", "-sV", "--script", "vulners", "-p", f"{port}", f"{host}"],
+            scan = subprocess.run(["nmap", "-sV", "--script", "vulners", "-p", port, host],
                                   capture_output=True, text=True)
             out = str(scan.stdout)
             print(out)
@@ -171,14 +168,14 @@ def portscan():
             for i in ports:
                 str(i)
             ports_join = ",".join(ports)
-            scan = subprocess.run(["nmap", "-sV", "--script", "vulners", "-p", f"{ports_join}", f"{host}"],
+            scan = subprocess.run(["nmap", "-sV", "--script", "vulners", "-p", ports_join, host],
                                   capture_output=True, text=True)
             out = str(scan.stdout)
             print(out)
             append_to_file(out, "_portscan")
         elif choice == "3":
             range_of_ports = f"{start_port}-{end_port}"
-            scan = subprocess.run(["nmap", "-sV", "--script", "vulners", "-p", f"{range_of_ports}", f"{host}"],
+            scan = subprocess.run(["nmap", "-sV", "--script", "vulners", "-p", range_of_ports, host],
                                   capture_output=True, text=True)
             out = str(scan.stdout)
             print(out)
@@ -199,25 +196,19 @@ def aptupd():
 # function that gets a list of users within the sudo group
 def list_sudo_users():
     # print("Users with Sudo permissions: ")
-    # first bash command to read group file
-    p1 = subprocess.Popen(["cat", "/etc/group"], stdout=subprocess.PIPE)
-    # finds sudo group
-    p2 = subprocess.run(['grep', "^sudo"], stdin=p1.stdout, capture_output=True)
-    # ensures subprocess output is a workable string, this may not be necessary
-    s1 = str(p2.stdout)
-    # divides string into a nice list so we can get rid of unneeded text
-    l1 = s1.split(":")
-    # pulls out the user list
-    sdusers = (l1[-1])
-    # changes single line list into a column list
-    userclean = sdusers.replace(",", "\n")
-    # cleans up a stray \n' that was at the end of the list, left over from the original file formatting
-    userclean = userclean.replace("\\n\'", "")
-    ctime = datetime.now()
-    userclean = str(f"The following users currently have Sudo Permissions as of {ctime}: \n{userclean}\n")
-    # prints list
-    print(userclean)
-    append_to_file(userclean, "_sudoUsers")
+    with open("/etc/group") as f:
+        for line in f.readlines():
+            sudo = re.search("sudo",line)
+            if sudo:
+                sudo1 = line
+
+    sudo_group = sudo1.split(":")
+    sudo_users = sudo_group[-1]
+    output = sudo_users.replace(",","\n")
+    final = f"The following users have sudo permissions:\n{output}"
+    print(final)
+    f.close()
+    append_to_file(final, "_sudoUsers")
 
 
 # function that checks permissions of sensitive files such as the .ssh file and the shadow file
@@ -416,7 +407,7 @@ def menu():
     print("6. Check to see if there are any obvious password files in users home directory.")
     print("7. Check password strength of all users.")
     print("q. Exit")
-    choice = input("Enter your choice (separated by commas for multiple choices): ")
+    choice = input("Enter your choice (separated by commas for multiple choices): ").strip()
     choices = choice.split(",")
     choices = errcheck(choices, options)
     for _ in choices:
@@ -448,13 +439,13 @@ def errcheck(choices, options):
     for c in choices:
         if c not in options.keys():
             # if they're not in the dictionary, asks them to re input their choices
-            choice = input(f"Invalid choice: {c}\nPlease try again (or type q to quit): ")
+            choice = input(f"Invalid choice: {c}\nPlease try again (or type q to quit): ").strip()
 
             choices = choice.split(",")
-            #loops back to error check new inputs
+            # loops back to error check new inputs
             errcheck(choices, options)
     # once their choices are all viable options, sends the proper lists of choices back to main
-    return (choices)
+    return choices
 
 def main():
     menu()
