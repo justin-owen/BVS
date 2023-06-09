@@ -20,63 +20,61 @@ def append_to_file(content, scan):
     f.close()
 
 
-# port scan function
-def portscan():
-    # Function to check if an IP address is valid
-    def is_valid_ip_address(ip):
+# Function to check if an IP address is valid
+def is_valid_ip_address(ip):
+    try:
+        socket.inet_pton(socket.AF_INET, ip)  # Check IPv4 format
+        return True
+    except socket.error:
         try:
-            socket.inet_pton(socket.AF_INET, ip)  # Check IPv4 format
+            socket.inet_pton(socket.AF_INET6, ip)  # Check IPv6 format
             return True
         except socket.error:
-            try:
-                socket.inet_pton(socket.AF_INET6, ip)  # Check IPv6 format
-                return True
-            except socket.error:
-                return False
+            return False
 
-    # Function to get a valid port number from the user
-    def get_valid_port(prompt):
-        # Loop until a valid port number is entered
-        while True:
-            port = input(prompt)
-            try:
-                # Attempt to convert the input to an integer
-                port = int(port)
-                # Check if the port number is within valid range
-                if 1 <= port <= 65535:
-                    return port
-                else:
-                    print("Invalid port number. Please enter a number between 1 and 65535.")
-            except ValueError:
-                print("Invalid input. Please enter a valid port number.")
-
-    # Function to get a valid choice from the user
-    def get_valid_choice(prompt):
-        valid_choices = ["1", "2", "3"]
-        while True:
-            choice = input(prompt)
-            if choice in valid_choices:
-                return choice
+# Function to get a valid port number from the user
+def get_valid_port(prompt):
+    # Loop until a valid port number is entered
+    while True:
+        port = input(prompt)
+        try:
+            # Attempt to convert the input to an integer
+            port = int(port)
+            # Check if the port number is within valid range
+            if 1 <= port <= 65535:
+                return port
             else:
-                print("Invalid choice. Please enter 1, 2, or 3.")
+                print("Invalid port number. Please enter a number between 1 and 65535.")
+        except ValueError:
+            print("Invalid input. Please enter a valid port number.")
 
-    # Function to scan a single port on a host
-    def scan_single_port(host, port):
-        # Creates a new socket object
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-            s.settimeout(1)
-            # Use the socket object to establish a TCP connection with host
-            # If return value is 0 connect is established
-            return s.connect_ex((host, port)) == 0
+# Function to get a valid choice from the user
+def get_valid_choice(prompt):
+    valid_choices = ["1", "2", "3"]
+    while True:
+        choice = input(prompt).strip()
+        if choice in valid_choices:
+            return choice
+        else:
+            print("Invalid choice. Please enter 1, 2, or 3.")
 
-    # Function to scan multiple ports on a host
-    def scan_multiple_ports(host, ports):
-        open_ports = []
-        # Iterates over a list of ports and calls scan_single_port to scan all ports
-        for port in ports:
-            if scan_single_port(host, port):
-                open_ports.append(port)
-        return open_ports
+# Function to scan a single port on a host
+def scan_single_port(host, port):
+    # Creates a new socket object
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.settimeout(1)
+        # Use the socket object to establish a TCP connection with host
+        # If return value is 0 connect is established
+        return s.connect_ex((host, port)) == 0
+
+# Function to scan multiple ports on a host
+def scan_multiple_ports(host, ports):
+    open_ports = []
+    # Iterates over a list of ports and calls scan_single_port to scan all ports
+    for port in ports:
+        if scan_single_port(host, port):
+            open_ports.append(port)
+    return open_ports
 
     # Function to scan a range of ports on a host
     def scan_range_ports(host, start_port, end_port):
@@ -85,6 +83,7 @@ def portscan():
 
     print("This will scan for open ports.")
 
+def portscan():
     # Get the host (IP address) from the user
     while True:
         host = input('Enter the host to scan (IP address): ').strip()
@@ -233,10 +232,10 @@ def permissions_check():
         except subprocess.CalledProcessError:
             return None
 
-    def get_directs():
-        # Get and print the permissions for the /etc/shadow file
-        etc_shadow_permissions = get_permissions('/etc/shadow')
-        print(f'Permissions for /etc/shadow: {etc_shadow_permissions}')
+def permissions_check():
+    # Get and print the permissions for the /etc/shadow file
+    etc_shadow_permissions = get_permissions('/etc/shadow')
+    print(f'Permissions for /etc/shadow: {etc_shadow_permissions}')
 
         # Iterate over the users in the /home directory
         home_dir = '/home'
