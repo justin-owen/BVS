@@ -5,7 +5,6 @@ import re
 import subprocess
 import time
 from datetime import date
-from datetime import datetime
 
 
 # function to append results of scans to a file in a directory
@@ -20,7 +19,35 @@ def append_to_file(content, scan):
     f.close()
 
 
-# Function to check if an IP address is valid
+def scan_ports(host, ports):
+    # Initialize a list to store the open ports
+    open_ports = []
+    if isinstance(ports, int):
+        # Scan a single port
+        # AF_INET is for IPV4 and SOCK_STREAM allows a reliable connection between two host
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            # s.connect_ex returns value 0 if connection was made
+            if s.connect_ex((host, ports)) == 0:
+                open_ports.append(ports)
+    elif isinstance(ports, list):
+        # Scan multiple ports
+        for port in ports:
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                if s.connect_ex((host, port)) == 0:
+                    open_ports.append(port)
+    elif isinstance(ports, tuple) and len(ports) == 2:
+        # Scan a range of ports
+        # assigning start and end ports from tuple
+        start_port, end_port = ports
+        if isinstance(start_port, int) and isinstance(end_port, int):
+            for p in range(start_port, end_port + 1):
+                with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                    if s.connect_ex((host, p)) == 0:
+                        open_ports.append(p)
+
+    return open_ports
+
+
 def is_valid_ip_address(ip):
     try:
         # inet_pton returns value 0(True) if the format is correct
@@ -35,57 +62,55 @@ def is_valid_ip_address(ip):
 
 
 # Function to get a valid port number from the user
-def get_valid_port(prompt):
-    # Loop until a valid port number is entered
+def get_valid_ports(prompt):
+    print("- For a single port, enter a number (e.g., 80).")
+    print("- For multiple ports, enter numbers separated by commas (e.g., 80, 443, 8080).")
+    print("- For a range of ports, enter start and end ports separated by a dash (e.g., 1-1024).")
+
+    # Loop until user enters valid list of ports
     while True:
-        port = input(prompt)
-        try:
-            # Attempt to convert the input to an integer
-            port = int(port)
-            # Check if the port number is within valid range
-            if 1 <= port <= 65535:
-                return port
+        ports_input = input(prompt).strip()
+        # Split user input into a list
+        ports = [port.strip() for port in ports_input.split(",")]
+        valid_ports = []
+        invalid_ports = []
+        for port in ports:
+            if "-" in port:
+                # Port range
+                # Split port into start and end
+                start_port, end_port = port.split("-")
+                # Check if numbers are valid
+                if start_port.isdigit() and end_port.isdigit():
+                    start_port = int(start_port)
+                    end_port = int(end_port)
+                    if 1 <= start_port <= end_port <= 65535:
+                        valid_ports.extend(range(start_port, end_port + 1))
+                    else:
+                        invalid_ports.append(port)
+                else:
+                    invalid_ports.append(port)
+            elif port.isdigit():
+                # Single port
+                port = int(port)
+                if 1 <= port <= 65535:
+                    valid_ports.append(port)
+                else:
+                    invalid_ports.append(port)
             else:
-                print("Invalid port number. Please enter a number between 1 and 65535.")
-        except ValueError:
-            print("Invalid input. Please enter a valid port number.")
+                invalid_ports.append(port)
 
-# Function to get a valid choice from the user
-def get_valid_choice(prompt):
-    valid_choices = ["1", "2", "3"]
-    while True:
-        choice = input(prompt).strip()
-        if choice in valid_choices:
-            return choice
+        if invalid_ports:
+            print("Invalid ports:", ", ".join(str(port) for port in invalid_ports))
         else:
-            print("Invalid choice. Please enter 1, 2, or 3.")
+            return valid_ports
 
-# Function to scan a single port on a host
-def scan_single_port(host, port):
-    # Creates a new socket object
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        s.settimeout(1)
-        # Use the socket object to establish a TCP connection with host
-        # If return value is 0 connect is established
-        return s.connect_ex((host, port)) == 0
-
-# Function to scan multiple ports on a host
-def scan_multiple_ports(host, ports):
-    open_ports = []
-    # Iterates over a list of ports and calls scan_single_port to scan all ports
-    for port in ports:
-        if scan_single_port(host, port):
-            open_ports.append(port)
-    return open_ports
-
-# Function to scan a range of ports on a host
-def scan_range_ports(host, start_port, end_port):
-    open_ports = scan_multiple_ports(host, range(start_port, end_port + 1))
-    return open_port
 
 def portscan():
-    # Get the host (IP address) from the user
+    # Assigned for detail scan
+    choice = 0
     print("This will scan for open ports.")
+
+    # Get the host (IP address) from the user
     while True:
         host = input('Enter the host to scan (IP address): ').strip()
 
@@ -94,90 +119,52 @@ def portscan():
         else:
             print('Invalid IP address format. Please enter a valid IP address.')
 
-    # Get the choice from the user
-    choice = get_valid_choice(
-        'Do you want to scan (1) a single port, (2) multiple ports, or (3) a range of ports? ')
+    ports = get_valid_ports("Ports: ")
 
-    if choice == '1':
-        # Scan a single port
-        port = get_valid_port('Enter the port number to scan: ').strip()
-        if scan_single_port(host, port):
-            print(f'Port {port} is open')
-            append_to_file(f"{host} has an open port of {port}.", "_portscan")
-        else:
-            print(f'Port {port} is closed')
-            append_to_file(f"Port {port} is closed on {host}", "_portscan")
+    # Perform the port scan
+    open_ports = scan_ports(host, ports)
 
-    elif choice == '2':
-        # Scan multiple ports
-        ports = []
-        while True:
-            port = input('Enter a port number to scan (r to run): ').strip()
-            if port == "r":
-                break
-            else:
-                try:
-                    port = int(port)
-                    if 1 <= port <= 65535:
-                        ports.append(port)
-                    else:
-                        print("Invalid port number. Please enter a number between 1 and 65535.")
-                except ValueError:
-                    print("Invalid input. Please enter a valid port number.")
-
-        open_ports = scan_multiple_ports(host, ports)
-
-        if open_ports:
-            print(f'Open ports: {open_ports}')
-            append_to_file(f"{host} has the open ports: {open_ports}", "_portscan")
-        else:
-            print('No open ports found.')
-            append_to_file(f"No open ports found on {host}.", "_portscan")
-
-    elif choice == '3':
-        # Scan a range of ports
-        start_port = get_valid_port('Enter the start port: ').strip()
-        end_port = get_valid_port('Enter the end port: ').strip()
-
-        open_ports = scan_range_ports(host, start_port, end_port)
-
-        if open_ports:
-            print(f'Open ports: {open_ports}')
-            append_to_file(f"{host} has the open ports: {open_ports}", "_portscan")
-        else:
-            print('No open ports found.')
-            append_to_file(f"No open ports found on {host}.", "_portscan")
-
+    if open_ports:
+        print(f'Open ports: {open_ports}')
+        # append_to_file(f"{host} has the open ports: {open_ports}", "_portscan")
     else:
-        print('Invalid choice.')
-    # Asks if you want to get a more detailed scan using nmap's vulners script with the ability to quit and go to the main menu
+        print('No open ports found.')
+        # append_to_file(f"No open ports found on {host}.", "_portscan")
+
     resp = input("Enter y/n to do a more detailed scan, 'q' to quit or 'x' to return to main menu: ")
+    resp = resp.lower()
+
     while not (resp in ["q", "x", "y", "n"]):
         resp = input("Invalid input, please try again: ").strip()
+
     if resp == "q":
         exit()
     elif resp == "x":
         main()
     elif resp == "y":
-        # accounts for the different choices chosen at the beginning of the port scan
+        if isinstance(ports, int):
+            choice = "1"
+        elif isinstance(ports, list):
+            choice = "2"
+        elif isinstance(ports, tuple):
+            choice = "3"
+
         if choice == "1":
-            scan = subprocess.run(["nmap", "-sV", "--script", "vulners", "-p", port, host],
+            scan = subprocess.run(["nmap", "-sV", "--script", "vulners", "-p", f"{open_ports[0]}", f"{host}"],
                                   capture_output=True, text=True)
             out = str(scan.stdout)
             print(out)
             append_to_file(out, "_portscan")
         elif choice == "2":
-            for i in ports:
-                str(i)
-            ports_join = ",".join(ports)
-            scan = subprocess.run(["nmap", "-sV", "--script", "vulners", "-p", ports_join, host],
+            ports_join = ",".join(str(port) for port in open_ports)
+            scan = subprocess.run(["nmap", "-sV", "--script", "vulners", "-p", f"{ports_join}", f"{host}"],
                                   capture_output=True, text=True)
             out = str(scan.stdout)
             print(out)
             append_to_file(out, "_portscan")
         elif choice == "3":
-            range_of_ports = f"{start_port}-{end_port}"
-            scan = subprocess.run(["nmap", "-sV", "--script", "vulners", "-p", range_of_ports, host],
+            range_of_ports = f"{open_ports[0]}-{open_ports[-1]}"
+            scan = subprocess.run(["nmap", "-sV", "--script", "vulners", "-p", f"{range_of_ports}", f"{host}"],
                                   capture_output=True, text=True)
             out = str(scan.stdout)
             print(out)
